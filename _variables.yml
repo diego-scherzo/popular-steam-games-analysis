@@ -1,0 +1,133 @@
+project:
+  title: Longevity of Popular Steam Games
+  author: Diego Scherzo
+  description: Reproducible R project for studying the longevity of popular Steam games
+               through a curated dataset and statistical analysis.
+  status: Work in progress
+  links:
+    repository: "https://github.com/diego-scherzo/longevity-of-popular-steam-games"
+    readme_image: "https://github.com/user-attachments/assets/085c224f-de75-4fb6-a828-e9a468df4c60"
+
+environment:
+  r_minimum_version: "4.5"
+  quarto_minimum_version: "1.9"
+  tex_distribution: TinyTeX
+
+dataset:
+  name: Steam Games Dataset
+  publisher: Martin Bustos / Fronkon Games
+  platform: Kaggle
+  external_file: games.csv
+  kaggle_version: 38
+  snapshot_date: "2026-07-23"
+  zenodo_doi: "10.5281/zenodo.21567902"
+  zenodo_record_url: "https://zenodo.org/records/21567902"
+  zenodo_file_url: "https://zenodo.org/records/21567902/files/games.csv?download=1"
+  checksum:
+    algorithm: sha256
+    value: "1B48008B01A799D82385D6E66BA0CB65DD477B6AA4B6C2EC8C443025AB6880AD"
+  license: MIT
+  source_url: "https://www.kaggle.com/datasets/fronkongames/steam-games-dataset"
+  version_url: "https://www.kaggle.com/datasets/fronkongames/steam-games-dataset/versions/38"
+  upstream_scraper: Steam Games Scraper
+  upstream_url: "https://github.com/FronkonGames/Steam-Games-Scraper"
+
+processed_dataset:
+  title: Popular Steam Games Dataset
+  publisher: Diego Scherzo
+  platform: Kaggle
+  url: https://www.kaggle.com/datasets/jokeich/popular-steam-games-dataset
+
+inspection:
+  special_values:
+    - ""
+    - "na"
+    - "n/a"
+    - "null"
+    - "none"
+    - "unknown"
+    - "missing"
+    - "tbd"
+
+enrichment:
+  metadata_columns:
+    - publishers
+    - categories
+    - genres
+
+analysis:
+  start_year: 2013
+  end_year: 2024
+  minimum_reviews: 10000
+  paid_at_snapshot_only: true
+  minimum_snapshot_price_usd: 0
+
+validation:
+  exclude_early_access: true
+  maximum_review_rows: 0
+  early_access_genre: Early Access
+  non_game_genres:
+    - Utilities
+    - Software Training
+    - Animation & Modeling
+    - Design & Illustration
+    - Video Production
+    - Audio Production
+    - Web Publishing
+    - Game Development
+    - Photo Editing
+    - Accounting
+  non_game_tags:
+    - Software
+  gameplay_categories:
+    - Single-player
+    - Multi-player
+    - PvP
+    - Online PvP
+    - LAN PvP
+    - Co-op
+    - Online Co-op
+    - LAN Co-op
+    - Shared/Split Screen
+    - Shared/Split Screen PvP
+    - Shared/Split Screen Co-op
+  canonical_name_app_ids:
+    trine_2_complete_story: 35720
+    train_simulator_classic: 24010
+    call_of_duty_ghosts: 209160
+    call_of_duty_advanced_warfare: 209650
+    call_of_duty_black_ops_iii: 311210
+    call_of_duty_wwii: 476600
+    shadow_of_the_tomb_raider: 750920
+
+files:
+  data:
+    manual:
+      metadata_overrides: steam_metadata_overrides.csv
+    interim:
+      candidate_sample: popular_steam_games_candidate_sample.csv
+      metadata_gaps: popular_steam_games_metadata_gaps.csv
+      enriched_candidate_sample: popular_steam_games_enriched_candidate_sample.csv
+      validation_log: popular_steam_games_validation_log.csv
+    processed:
+      validated_games: popular_steam_games.csv
+paths:
+  data:
+    root: data
+    external: external
+    manual: manual
+    interim: interim
+    processed:
+      root: processed
+  reports:
+    root: reports
+
+reports:
+  it:
+    input_file: report-it.qmd
+    title: Longevità dei videogiochi popolari su Steam
+    output_file: longevity-of-popular-steam-games-it.pdf
+  en:
+    input_file: report-en.qmd
+    title: Longevity of Popular Steam Games
+    output_file: longevity-of-popular-steam-games-en.pdf

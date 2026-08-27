@@ -1,0 +1,8 @@
+---
+lang: en
+---
+
+{{< include shared/_setup.qmd >}}
+
+{{< include en/chapters/_01-abstract.qmd >}}
+{{< include en/chapters/_02-introduction.qmd >}}

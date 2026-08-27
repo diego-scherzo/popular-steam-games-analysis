@@ -1,0 +1,43 @@
+project:
+  type: default
+  execute-dir: project
+
+format:
+  pdf:
+    pdf-engine: lualatex
+    documentclass: scrreprt
+    papersize: a4
+    fontsize: 11pt
+
+    geometry:
+      - top=2.5cm
+      - bottom=2.5cm
+      - inner=3cm
+      - outer=2.5cm
+
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    colorlinks: true
+
+    syntax-highlighting: github
+    code-block-bg: "#F6F8FA"
+    code-block-border-left: "#B8C0CC"
+
+    tbl-cap-location: top
+    fig-cap-location: bottom
+
+    keep-tex: false
+
+    include-in-header:
+      - reports/latex/preamble.tex
+
+render:
+  - README-source.qmd
+  - reports/report-it.qmd
+  - reports/report-en.qmd
+
+execute:
+  echo: false
+  warning: false
+  message: false

@@ -1,0 +1,56 @@
+# Quarto
+/.quarto/
+**/*.quarto_ipynb
+*_cache/
+*_files/
+*.knit.md
+*.utf8.md
+/README.html
+
+# Latex
+report-*.tex
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.lot
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+*.xdv
+
+# R
+/.Rhistory
+/.RData
+/.Ruserdata
+/.Rproj.user/
+/_targets/
+
+# VS Code
+/.vscode/*
+
+# System temp files
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Data
+/data/external/*
+
+/data/interim/*
+!/data/interim/.gitkeep
+
+/data/processed/*.csv
+
+# Generated outputs
+/reports/**/*.pdf
+/outputs/reports/
+
+# Notes
+NOTES.md

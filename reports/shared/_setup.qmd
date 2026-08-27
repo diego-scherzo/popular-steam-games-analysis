@@ -1,0 +1,22 @@
+```{r}
+#| label: setup
+#| include: false
+
+box::use(
+    targets[tar_load],
+    R/report[report_table]
+)
+
+# Load pipeline objects used by both language-specific reports.
+tar_load(c(
+    external_data_inspection,
+    imported_data_inspection,
+    candidate_sample,
+    candidate_sample_inspection,
+    metadata_gaps,
+    validation_log,
+    validation_summary,
+    validated_games
+))
+
+```
