@@ -1,8 +1,28 @@
 ---
 lang: it
+header-includes:
+  - |
+    \usepackage{graphicx}
+    \usepackage{eso-pic}
+    \renewcommand{\maketitle}{
+      \begin{titlepage}
+        \thispagestyle{empty}
+        \AddToShipoutPictureBG*{
+          \AtPageLowerLeft{
+            \includegraphics[
+              width=\paperwidth,
+              height=\paperheight
+            ]{images/report-it-cover.png}
+          }
+        }
+        \null
+      \end{titlepage}
+      \setcounter{page}{1}
+    }
 ---
 
-{{< include shared/_setup.qmd >}}
+{{< include _setup.qmd >}}
 
 {{< include it/chapters/_01-abstract.qmd >}}
 {{< include it/chapters/_02-introduction.qmd >}}
+{{< include it/chapters/_03-data-sample.qmd >}}

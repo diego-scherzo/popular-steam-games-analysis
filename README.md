@@ -22,7 +22,7 @@ This project uses a reproducible R pipeline to clean and validate a
 the [**Popular Steam Games
 Dataset**](https://www.kaggle.com/datasets/jokeich/popular-steam-games-dataset),
 a curated dataset of fully released paid Steam games from **2013–2024**
-with at least **10,000 reviews**.
+with at least **10000 reviews**.
 
 The *exploratory data analysis*, the *statistical analysis, including
 model building and evaluation*, and the *Italian and English reports*,

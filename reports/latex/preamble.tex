@@ -1,7 +1,16 @@
 \usepackage{microtype}
+\usepackage{sourceserif}
 \usepackage{xurl}
 \usepackage{fvextra}
+\usepackage{seqsplit}
+\usepackage{caption}
 \urlstyle{same}
+
+% Allow long inline-code identifiers to wrap within the text margins.
+\let\originaltexttt\texttt
+\renewcommand{\texttt}[1]{\originaltexttt{\seqsplit{#1}}}
+
+\captionsetup[table]{labelfont=bf}
 
 \setlength{\emergencystretch}{3em}
 

@@ -4,17 +4,24 @@
 
 box::use(
     targets[tar_load],
-    R/report[report_table]
+    R/report[
+        format_date_it,
+        format_integer_it,
+        report_table,
+        report_preview_table
+    ]
 )
 
-# Load pipeline objects used by both language-specific reports.
+# Load the pipeline objects used in the reports.
 tar_load(c(
+    variables,
     external_data_inspection,
     imported_data_inspection,
     candidate_sample,
     candidate_sample_inspection,
     metadata_gaps,
-    validation_log,
+    metadata_overrides,
+    enriched_candidate_sample,
     validation_summary,
     validated_games
 ))

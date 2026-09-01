@@ -1,0 +1,654 @@
+# Dati e costruzione del campione
+
+L'analisi parte da dati relativi alle applicazioni distribuite su Steam. La
+base di partenza è lo [*{{< var dataset.name >}}*]({{< var dataset.source_url >}}),
+pubblicato su Kaggle da {{< var dataset.publisher >}} e prodotto con lo
+[*Steam Games Scraper*]({{< var dataset.upstream_url >}}). Il progetto non parte utilizzando la versione corrente del dataset, ma una copia fissa della versione
+{{< var dataset.kaggle_version >}}, recuperata e archiviata il
+`r format_date_it(variables$dataset$snapshot_date)`.
+
+Il file sorgente contiene `r format_integer_it(external_data_inspection$number_of_rows)`
+applicazioni. Non tutte sono adatte allo studio: differiscono per periodo di
+pubblicazione e diffusione e comprendono Early Access, software non
+videoludico e versioni duplicate. Per questo il dataset processato utilizzato per l'analisi
+deriva da una sequenza di importazione, trasformazione,
+selezione, integrazione e validazione dei dati.
+
+Il risultato è un dataset di
+`r format_integer_it(nrow(validated_games))` videogiochi popolari, pubblicati
+dal {{< var analysis.start_year >}} al {{< var analysis.end_year >}}, con
+almeno `r format_integer_it(variables$analysis$minimum_reviews)` recensioni e
+un prezzo maggiore di zero al momento dello snapshot. Questo dataset,
+denominato [*{{< var processed_dataset.title >}}*]({{< var processed_dataset.url >}})
+e reso disponibile su Kaggle, costituisce la base di partenza per le analisi successive, dalle quali potranno essere ricavati campioni più specifici in funzione degli obiettivi dell’analisi.
+
+## Fonte dei dati
+
+Lo scraper utilizzato per costruire il dataset raccoglie informazioni tramite la Steam Web API e integra alcuni dati provenienti da SteamSpy. Il dataset viene pubblicato e aggiornato nel tempo, per cui è necessario lavorare su una base dati stabile per rendere riproducibili le analisi. A questo scopo, la versione utilizzata è stata conservata in un
+[record Zenodo]({{< var dataset.zenodo_record_url >}}) ed associata a un’impronta univoca del file.
+
+Va però considerato che alcune informazioni presenti nel dataset possono cambiare nel tempo. I giochi continuano a essere disponibili su Steam anche molti anni dopo la loro pubblicazione e, di conseguenza, alcune variabili presenti nel dataset possono non riflettere più lo stato attuale del gioco. Queste informazioni descrivono quindi lo stato del gioco in un determinato momento, che però non è possibile identificare con precisione. La data del `r format_date_it(variables$dataset$snapshot_date)` si riferisce al recupero e all’archiviazione della copia utilizzata nel progetto. È comunque ragionevole collocare queste informazioni nel 2026, poiché la versione {{< var dataset.kaggle_version >}} del dataset è stata recuperata in quell’anno e, nelle informazioni Kaggle associate al dataset pubblicato da {{< var dataset.publisher >}}, è indicata una frequenza di aggiornamento settimanale.
+
+## Download e ispezione dei dati
+
+```{r}
+#| label: prepare-external-inspection-values
+#| include: false
+
+parsing_problems <- external_data_inspection$parsing_problems
+
+expected_column_count <- sub(
+    " columns",
+    "",
+    unique(parsing_problems$expected)
+)
+
+actual_column_count <- sub(
+    " columns",
+    "",
+    unique(parsing_problems$actual)
+)
+```
+
+Prima dell’elaborazione, la copia dello snapshot archiviata su Zenodo viene
+resa disponibile localmente e verificata mediante un identificativo.
+
+La prima ispezione rileva `r format_integer_it(external_data_inspection$number_of_rows)` righe.
+Dall'intestazione ci si aspetterebbero `r expected_column_count` colonne, ma
+ogni riga ne contiene in realtà `r actual_column_count`. Questa differenza
+genera `r format_integer_it(nrow(parsing_problems))` problemi di parsing e
+indica che l'errore riguarda l'intestazione del file.
+
+```{r}
+#| label: external-inspection-output
+#| echo: false
+
+print(
+    external_data_inspection[
+        c("number_of_rows", "number_of_columns")
+    ]
+)
+
+cat("\n$parsing_problems\n")
+
+print(
+    parsing_problems[
+        c("row", "col", "expected", "actual")
+    ],
+    n = 3
+)
+```
+
+Dal controllo dei nomi delle colonne emerge che `Discount` e `DLC count` risultano
+concatenati nel campo `DiscountDLC count`. Il numero effettivo di campi presenti nelle righe è quindi coerente con la struttura attesa del dataset, mentre l'errore deriva esclusivamente dalla mancata separazione dei due nomi nell'intestazione.
+
+```{r}
+#| label: external-column-names-output
+#| echo: false
+
+print(external_data_inspection$column_names)
+```
+
+Individuata la causa, il problema può essere corretto direttamente durante la fase di importazione, separando i due campi e ripristinando i rispettivi nomi.
+
+## Importazione dei dati
+
+```{r}
+#| label: prepare-imported-inspection-values
+#| include: false
+
+corrected_column_names <- intersect(
+    imported_data_inspection$dataset_overview$skim_variable,
+    c("Discount", "DLC count")
+)
+
+imported_column_count <- attr(
+    imported_data_inspection$dataset_overview,
+    "data_cols"
+)
+
+imported_row_count <- attr(
+    imported_data_inspection$dataset_overview,
+    "data_rows"
+)
+
+imported_parsing_problems <- imported_data_inspection$parsing_problems
+```
+
+L'importazione corregge il problema individuato nell’intestazione del file, in questo modo `Discount` e `DLC count` vengono ora riconosciuti come due variabili distinte.
+
+Al termine di questa fase, il dataset contiene `r imported_column_count` variabili e non presenta più problemi di parsing, con `r nrow(imported_parsing_problems)` problemi residui, dimostrando che la semplice correzione dell'intestazione ha consentito di ripristinare la corretta struttura del file.
+
+```{r}
+#| label: imported-structure-output
+#| echo: false
+
+print(
+    list(
+        number_of_columns = imported_column_count,
+        corrected_column_names = corrected_column_names,
+        parsing_problems = imported_parsing_problems
+    )
+)
+```
+
+L'ulteriore inspezione applicata successivamente all'importazione registra inoltre
+`r format_integer_it(imported_data_inspection$duplicated_rows)` righe duplicate,
+`r format_integer_it(imported_data_inspection$missing_ids)` AppID mancanti e
+`r format_integer_it(imported_data_inspection$duplicated_ids)` AppID duplicati.
+
+Vengono inoltre prodotti alcuni riepiloghi relativi ai valori mancanti e ai valori speciali presenti nelle variabili.
+
+```{r}
+#| label: imported-integrity-output
+#| echo: false
+
+print(
+    imported_data_inspection[
+        c("duplicated_rows", "missing_ids", "duplicated_ids")
+    ]
+)
+```
+
+Conclusi i controlli sull’importazione, si procede dunque alla trasformazione del dataset e alla preparazione delle variabili utilizzate nelle analisi successive.
+
+## Selezione e trasformazione delle variabili
+
+```{r}
+#| label: load-transformation-data
+#| include: false
+
+tar_load(c(
+    imported_data,
+    transformed_data
+))
+```
+
+Terminata l’importazione, i nomi delle colonne vengono resi omogenei e vengono mantenute soltanto le variabili necessarie alla costruzione del campione e alle analisi successive, senza eliminare osservazioni: difatti, il numero di righe resta pari a `r format_integer_it(nrow(transformed_data))`, mentre le variabili passano da `r format_integer_it(imported_column_count)` a `r format_integer_it(ncol(transformed_data))`.
+
+Le variabili escluse dal dataset possono essere ricondotte a quattro principali
+motivazioni:
+
+- **Variabili stimate:** `estimated_owners`, `average_playtime_forever`,
+  `average_playtime_two_weeks`, `median_playtime_forever` e
+  `median_playtime_two_weeks`.
+- **Variabili con copertura insufficiente:** `reviews`, `metacritic_url`,
+  `score_rank` e `movies`.
+- **Contenuti non direttamente utilizzabili nell’analisi:**
+  `about_the_game`, `notes`, `header_image`, `screenshots`, `website`,
+  `support_url` e `support_email`.
+- **Variabili non pertinenti o sostituite da indicatori più adatti:**
+  `required_age` e `user_score`.
+
+```{r}
+#| label: prepare-variable-selection-values
+#| include: false
+
+excluded_missing_counts <- with(
+    imported_data_inspection$missing_values_summary,
+    setNames(
+        n_miss[match(
+            c("Reviews", "Metacritic url", "Score rank", "Movies"),
+            variable
+        )],
+        c("reviews", "metacritic_url", "score_rank", "movies")
+    )
+)
+
+source_zero_counts <- c(
+    required_age = sum(
+        imported_data[["Required age"]] == 0,
+        na.rm = TRUE
+    ),
+    user_score = sum(
+        imported_data[["User score"]] == 0,
+        na.rm = TRUE
+    )
+)
+```
+
+Le variabili stimate sono state rimosse perché non corrispondono a misure
+osservate direttamente e il dataset non fornisce informazioni sufficienti per
+valutarne l’accuratezza. `estimated_owners`, infatti, riporta un intervallo
+anziché un conteggio osservato, mentre `average_playtime_forever`,
+`average_playtime_two_weeks`, `median_playtime_forever` e
+`median_playtime_two_weeks` contengono stime di SteamSpy prive di una misura
+di incertezza associata. Il loro utilizzo avrebbe quindi introdotto
+un’ulteriore fonte di incertezza, difficile da quantificare e potenzialmente
+in grado di rendere meno chiara l’interpretazione dei risultati dell'analisi.
+
+Le variabili con una copertura insufficiente sono state invece escluse perché presentano un numero elevato di valori mancanti e il loro utilizzo avrebbe ridotto sensibilmente le osservazioni disponibili per le analisi. In particolare, `reviews` presenta
+`r format_integer_it(excluded_missing_counts[["reviews"]])` valori mancanti su
+`r format_integer_it(imported_row_count)` osservazioni, `metacritic_url` ne
+presenta
+`r format_integer_it(excluded_missing_counts[["metacritic_url"]])`,
+`score_rank`
+`r format_integer_it(excluded_missing_counts[["score_rank"]])`, mentre
+`movies` risulta mancante in tutte le
+`r format_integer_it(excluded_missing_counts[["movies"]])` osservazioni.
+
+Allo stesso modo, i contenuti testuali, multimediali e di contatto, come
+`about_the_game`, `notes`, `header_image`, `screenshots`, `website`,
+`support_url` e `support_email`, sono stati esclusi perché non utilizzabili
+direttamente nelle analisi previste e avrebbero richiesto un tipo di
+elaborazione diverso da quello adottato nel progetto.
+
+Infine, `required_age` e `user_score` sono state escluse soprattutto per il
+modo in cui vengono registrate dallo Steam Games Scraper. `required_age`
+riprende il valore restituito dallo Steam Store, ma lo scraper assegna 0 anche
+quando l'informazione non è presente. La variabile non permette quindi di distinguere con certezza i giochi senza un limite di età dichiarato da quelli per cui l’informazione non è disponibile. Nel dataset infatti, il
+valore 0 compare in
+`r format_integer_it(source_zero_counts[["required_age"]])` osservazioni su
+`r format_integer_it(imported_row_count)`.
+
+`user_score` viene invece acquisito dal campo `userscore` di SteamSpy, ma lo
+scraper assegna anche in questo caso il valore 0 quando SteamSpy non restituisce
+dati. Poiché ciò accade in
+`r format_integer_it(source_zero_counts[["user_score"]])` osservazioni, cioè nella quasi totalità dei casi, il
+valore non può essere interpretato. Per rappresentare il giudizio degli utenti viene quindi preferito
+un indicatore ricavato direttamente dalle informazioni disponibili sulle
+recensioni, la cui costruzione viene descritta più avanti.
+
+Terminata la selezione delle variabili, quelle mantenute vengono riorganizzate e trasformate in funzione delle analisi successive. Alcune informazioni vengono semplicemente convertite, ricodificate o rinominate, mentre altre vengono utilizzate per costruire nuove variabili, con l’obiettivo di ottenere una struttura dei dati più chiara e adatta alle elaborazioni previste.
+
+Una prima trasformazione riguarda la colonna originale `Release date`. Il
+campo viene rinominato `release_date` e convertito dal formato testuale al tipo
+`Date`, consentendo di ricavare più facilmente la nuova variabile `release_year`, che
+conserva soltanto l’anno di pubblicazione e sarà utilizzata per delimitare il
+periodo di analisi.
+
+```{r}
+#| label: tbl-release-date-transformation
+#| echo: false
+#| tbl-cap: "Conversione della data di pubblicazione e derivazione dell'anno."
+
+report_preview_table(
+    `Release date` = imported_data[["Release date"]],
+    release_date = transformed_data$release_date,
+    release_year = transformed_data$release_year
+)
+```
+
+```{r}
+#| label: prepare-metacritic-transformation-value
+#| include: false
+
+metacritic_missing_value <- unique(
+    imported_data[["Metacritic score"]][
+        is.na(transformed_data$metacritic_score) &
+            !is.na(imported_data[["Metacritic score"]])
+    ]
+)
+```
+
+Un'ulteriore trasformazione riguarda il punteggio `metacritic_score`. Nella fonte,
+il valore `r metacritic_missing_value` non rappresenta un vero punteggio, ma indica che l’informazione non è disponibile. Per evitare che venga interpretato come una valutazione effettiva, viene quindi ricodificato come valore mancante (`NA`).
+
+```{r}
+#| label: tbl-metacritic-transformation
+#| echo: false
+#| tbl-cap: "Ricodifica dei punteggi Metacritic non disponibili."
+
+report_preview_table(
+    `Metacritic score` = imported_data[["Metacritic score"]],
+    metacritic_score = transformed_data$metacritic_score
+)
+```
+
+Dai campi relativi alle lingue vengono create due nuove variabili:
+`supported_language_count`, che indica il numero di lingue supportate dal
+gioco, e `full_audio_language_count`, che indica il numero di lingue per cui
+è disponibile il supporto audio completo.
+
+```{r}
+#| label: tbl-language-counts
+#| echo: false
+#| tbl-cap: "Conteggio delle lingue a partire dai campi originali."
+
+report_preview_table(
+    `Lingue supportate` =
+        imported_data[["Supported languages"]],
+    supported_language_count =
+        transformed_data$supported_language_count,
+    `Audio completo` =
+        imported_data[["Full audio languages"]],
+    full_audio_language_count =
+        transformed_data$full_audio_language_count
+)
+```
+
+I campi originali
+`supported_languages` e `full_audio_languages` vengono comunque conservati,
+in modo da mantenere anche l’informazione sulle singole lingue disponibili.
+Una lista esplicitamente vuota viene conteggiata come zero; un campo mancante
+o vuoto resta invece `NA`.
+
+Anche le informazioni sulle recensioni vengono rese più chiare. Le recensioni positive
+e negative vengono rinominate `positive_reviews` e `negative_reviews`. A partire da queste
+variabili vengono poi calcolate `total_reviews`, cioè il numero totale di recensioni
+ricevute dal gioco, e `positive_review_rate`, che esprime il peso delle recensioni positive sul totale, con valori compresi tra 0 e 1.
+
+$$
+\texttt{total\_reviews}_i
+= \texttt{positive\_reviews}_i + \texttt{negative\_reviews}_i,
+$$
+
+```{r}
+#| label: tbl-review-transformations
+#| echo: false
+#| tbl-cap: "Ridenominazione e somma dei conteggi delle recensioni."
+
+report_preview_table(
+    Positive = imported_data[["Positive"]],
+    Negative = imported_data[["Negative"]],
+    positive_reviews = transformed_data$positive_reviews,
+    negative_reviews = transformed_data$negative_reviews,
+    total_reviews = transformed_data$total_reviews,
+    positive_review_rate = transformed_data$positive_review_rate
+)
+```
+
+`positive_review_rate` viene quindi mantenuta come proporzione e non viene moltiplicata per 100. Quando `total_reviews` è uguale a zero, il rapporto non può essere calcolato e la variabile viene impostata a `NA`.
+
+Alcune variabili già presenti nella fonte vengono infine rinominate per
+renderne più chiaro il significato all’interno dell’analisi. Le `r ncol(transformed_data)` variabili mantenute sono
+riassunte di seguito e in questa fase vengono soltanto preparate e organizzate;
+il loro eventuale ruolo nell’analisi statistica sarà definito nelle sezioni
+successive.
+
+```{r}
+#| label: tbl-transformed-variables
+#| echo: false
+#| tbl-cap: "Variabili disponibili dopo la trasformazione."
+
+variable_descriptions <- c(
+    app_id = "Identificativo univoco dell'applicazione su Steam.",
+    name = "Titolo dell'applicazione.",
+    release_date = "Data completa di pubblicazione, convertita al tipo Date.",
+    release_year = "Anno di pubblicazione ricavato da release_date.",
+    previous_day_peak_ccu = "Picco di utenti simultanei registrato nel giorno precedente.",
+    snapshot_price_usd = "Prezzo in dollari statunitensi osservato nello snapshot.",
+    snapshot_discount_percent = "Sconto percentuale osservato nello snapshot.",
+    dlc_count = "Numero di DLC associati all'applicazione.",
+    supported_languages = "Elenco delle lingue supportate.",
+    supported_language_count = "Numero di lingue presenti in supported_languages.",
+    full_audio_languages = "Elenco delle lingue con audio completo.",
+    full_audio_language_count = "Numero di lingue presenti in full_audio_languages.",
+    windows = "Disponibilità del gioco su Windows.",
+    mac = "Disponibilità del gioco su macOS.",
+    linux = "Disponibilità del gioco su Linux.",
+    metacritic_score = "Punteggio Metacritic; NA quando non disponibile.",
+    positive_reviews = "Numero di recensioni positive accumulate.",
+    negative_reviews = "Numero di recensioni negative accumulate.",
+    total_reviews = "Somma delle recensioni positive e negative.",
+    positive_review_rate = "Proporzione di recensioni positive sul totale.",
+    achievement_count = "Numero di achievement associati al gioco.",
+    steam_recommendations = "Numero di raccomandazioni riportato da Steam.",
+    developers = "Sviluppatori associati al gioco.",
+    publishers = "Editori associati al gioco.",
+    categories = "Categorie funzionali assegnate da Steam.",
+    genres = "Generi associati al gioco.",
+    tags = "Tag descrittivi associati al gioco."
+)
+
+report_table(
+    data.frame(
+        variabile = names(transformed_data),
+        descrizione = unname(
+            variable_descriptions[names(transformed_data)]
+        )
+    ),
+    column_labels = list(
+        variabile = "Variabile",
+        descrizione = "Descrizione"
+    ),
+    column_alignments = c(
+        variabile = "left",
+        descrizione = "left"
+    ),
+    column_widths = c(
+        variabile = 35,
+        descrizione = 65
+    )
+)
+```
+
+Le stesse colonne possono essere consultate nel
+*{{< var processed_dataset.title >}}* pubblicato su
+Kaggle. La versione pubblicata contiene già il campione ottenuto applicando i
+criteri di selezione e validazione descritti nelle sezioni successive: cambia
+quindi il numero di osservazioni, ma resta invariata la struttura a
+`r format_integer_it(ncol(transformed_data))` variabili definita in questa
+fase.
+
+## Costruzione del campione candidato
+
+```{r}
+#| label: prepare-candidate-sample-values
+#| include: false
+
+candidate_missing_counts <- with(
+    candidate_sample_inspection$missing_values_summary,
+    setNames(n_miss, variable)
+)
+```
+
+Dopo la trasformazione, viene definito il campione candidato
+applicando tre criteri di selezione:
+
+- **Periodo di pubblicazione:** `release_year` deve essere compreso tra il
+  `r variables$analysis$start_year` e il
+  `r variables$analysis$end_year`, estremi inclusi.
+- **Popolarità:** `total_reviews` deve essere pari o superiore a
+  `r format_integer_it(variables$analysis$minimum_reviews)` recensioni.
+- **Prezzo allo snapshot:** `snapshot_price_usd` deve essere maggiore di
+  `r format_integer_it(variables$analysis$minimum_snapshot_price_usd)` USD.
+
+Il numero di recensioni viene utilizzato come criterio operativo per individuare i giochi popolari. Il vincolo sul prezzo serve invece a limitare il campione ai soli titoli a pagamento. Poiché il prezzo disponibile nel dataset descrive esclusivamente la situazione osservata al momento dello snapshot, questo criterio non consente però di stabilire se un gioco sia rimasto a pagamento per tutto il periodo di permanenza su Steam.
+
+Le tre condizioni vengono applicate contemporaneamente e, al termine del filtraggio, l'ispezione sul campione mostra il numero di osservazioni che passa da `r format_integer_it(nrow(transformed_data))` a `r format_integer_it(candidate_sample_inspection$number_of_rows)`, mentre il numero di variabili rimane invariato e pari a `r format_integer_it(candidate_sample_inspection$number_of_columns)`.
+
+```{r}
+#| label: candidate-sample-inspection-output
+#| echo: false
+
+print(
+    candidate_sample_inspection[
+        c(
+            "number_of_rows",
+            "number_of_columns",
+            "missing_values_summary"
+        )
+    ]
+)
+```
+
+L’ispezione evidenzia inoltre valori mancanti in quattro variabili. La situazione più rilevante riguarda `metacritic_score`, assente in `r format_integer_it(candidate_missing_counts[["metacritic_score"]])` giochi. Il punteggio viene mantenuto come `NA` e trattato come informazione non disponibile, ma la variabile viene comunque conservata nel *{{< var processed_dataset.title >}}* perché, quando presente, aggiunge un’informazione utile alla descrizione complessiva dei giochi inclusi.
+
+Le mancanze in `publishers`, `categories` e `genres`, pari rispettivamente a `r format_integer_it(candidate_missing_counts[["publishers"]])`, `r format_integer_it(candidate_missing_counts[["categories"]])` e `r format_integer_it(candidate_missing_counts[["genres"]])` osservazioni, riguardano invece informazioni descrittive che possono essere verificate e completate manualmente in maniera più accessibile ricorrendo a fonti esterne. Questo passaggio viene affrontato nella fase di arricchimento descritta nella sezione successiva.
+
+## Arricchimento dei dati
+
+```{r}
+#| label: prepare-metadata-enrichment-values
+#| include: false
+
+enrichment_change_count <- sum(
+    vapply(
+        variables$enrichment$metadata_columns,
+        function(column) {
+            previous_value <- candidate_sample[[column]]
+            enriched_value <- enriched_candidate_sample[[column]]
+
+            sum(
+                (is.na(previous_value) | trimws(previous_value) == "") &
+                    !(
+                        is.na(enriched_value) |
+                            trimws(enriched_value) == ""
+                    )
+            )
+        },
+        integer(1)
+    )
+)
+
+remaining_category_gap_count <- sum(
+    is.na(enriched_candidate_sample$categories) |
+        trimws(enriched_candidate_sample$categories) == ""
+)
+```
+
+La fase di arricchimento ha l’obiettivo di completare alcune informazioni descrittive mancanti nel campione. Il controllo precedente ha quindi individuato un totale di
+`r format_integer_it(nrow(metadata_gaps))` applicazioni con almeno un valore
+mancante tra `publishers`, `categories` e `genres`.
+
+Per individuare i casi interessati, viene quindi prodotto un riepilogo delle osservazioni con informazioni mancanti, riportato di seguito.
+
+```{r}
+#| label: tbl-metadata-gaps
+#| echo: false
+#| tbl-cap: "Dati mancanti individuati nel campione candidato."
+
+report_table(
+    metadata_gaps,
+    column_labels = list(
+        app_id = "AppID",
+        name = "Gioco",
+        publishers = "Publishers",
+        categories = "Categories",
+        genres = "Genres"
+    ),
+    column_alignments = c(
+        app_id = "right",
+        name = "left",
+        publishers = "left",
+        categories = "left",
+        genres = "left"
+    ),
+    column_widths = c(
+        app_id = 10,
+        name = 24,
+        publishers = 18,
+        categories = 24,
+        genres = 24
+    )
+)
+```
+
+Per completare queste informazioni viene utilizzata una tabella creata manualmente,
+nella quale ogni integrazione è accompagnata dall'URL della fonte, dalla data di consultazione
+e da una nota che motiva l'integrazione.
+
+```{r}
+#| label: tbl-metadata-overrides
+#| echo: false
+#| tbl-cap: "Integrazioni manuali e relativa provenienza."
+
+report_table(
+    metadata_overrides,
+    column_labels = list(
+        app_id = "AppID",
+        publishers = "Publishers",
+        categories = "Categories",
+        genres = "Genres",
+        source_url = "Fonte",
+        accessed_at = "Consultata il",
+        notes = "Nota"
+    ),
+    column_alignments = c(
+        app_id = "right",
+        publishers = "left",
+        categories = "left",
+        genres = "left",
+        source_url = "left",
+        accessed_at = "center",
+        notes = "left"
+    ),
+    column_widths = c(
+        app_id = 8,
+        publishers = 13,
+        categories = 10,
+        genres = 15,
+        source_url = 21,
+        accessed_at = 10,
+        notes = 23
+    )
+)
+```
+
+Al termine dell’arricchimento restano `r format_integer_it(remaining_category_gap_count)` valori mancanti in `categories`, relativi ad Aseprite e Lossless Scaling, per i quali non viene effettuata alcuna integrazione. I valori di `genres` riportati nella @tbl-metadata-gaps suggeriscono già la loro natura non videoludica, successivamente confermata dalla fase di validazione, che porta alla loro esclusione dal campione.
+
+Le restanti righe vengono invece associate tramite `app_id` e vengono effettuate complessivamente `r format_integer_it(enrichment_change_count)` integrazioni, completando tutti i valori mancanti di `publishers` e `genres`. Concluso questo passaggio, il campione può quindi essere sottoposto alla validazione.
+
+## Validazione del campione
+
+```{r}
+#| label: prepare-validation-values
+#| include: false
+
+validation_reason_counts <- setNames(
+    validation_summary$reason_summary$applications,
+    validation_summary$reason_summary$reason
+)
+```
+
+Conclusa la fase di arricchimento, il campione viene sottoposto a una procedura di validazione. L’obiettivo è individuare tre tipi di osservazioni che non devono essere incluse nel dataset finale:
+
+- **giochi ancora in Early Access** al momento dello snapshot;
+- **software non videoludici**, riconosciuti dalla presenza concorde di genere
+  e tag relativi al software e dall'assenza di categorie legate al gioco;
+- **applicazioni duplicate**, cioè casi in cui lo stesso gioco compare più volte con AppID differenti, ad esempio perché pubblicato in versioni o edizioni separate su Steam; in questi casi viene conservato l’AppID indicato nella configurazione.
+
+La validazione fa sì che venga creato un registro per ogni riga,
+dove viene indicato se il gioco deve essere mantenuto (`keep`),
+quando non emergono problemi; escluso (`exclude`), quando viene
+identificato un motivo certo di esclusione; oppure controllato manualmente (`review`),
+quando le informazioni disponibili non sono sufficienti per prendere una
+decisione definitiva, insieme alla relativa motivazione.
+
+```{r}
+#| label: validation-inspection-output
+#| echo: false
+
+print(
+    validation_summary[
+        c(
+            "number_of_candidate_rows",
+            "number_of_validated_rows",
+            "number_of_excluded_rows",
+            "number_of_review_rows",
+            "decision_summary",
+            "reason_summary"
+        )
+    ]
+)
+```
+
+L'ispezione individua `r format_integer_it(validation_summary$number_of_excluded_rows)`
+righe da escludere, di cui
+`r format_integer_it(validation_reason_counts[["early_access_at_snapshot"]])`
+giochi in Early Access,
+`r format_integer_it(validation_reason_counts[["non_game_software"]])`
+software non videoludici e
+`r format_integer_it(validation_reason_counts[["duplicate_name_noncanonical_app"]])`
+applicazioni duplicate non canoniche. Non restano invece casi da controllare
+manualmente. La correzione consiste quindi nel mantenere soltanto le righe contrassegnate
+con `keep`.
+
+```{r}
+#| label: tbl-validated-games-preview
+#| echo: false
+#| tbl-cap: "Anteprima delle prime osservazioni e variabili del dataset validato."
+
+report_table(
+    head(
+        validated_games[, seq_len(5), drop = FALSE]
+    )
+)
+
+```
+
+Il dataset validato contiene quindi
+`r format_integer_it(nrow(validated_games))` righe e
+`r format_integer_it(ncol(validated_games))` variabili e rappresenta la versione finale
+pubblicata su Kaggle, utilizzata come base di partenza per le analisi sviluppate.

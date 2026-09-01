@@ -361,7 +361,10 @@ list(
                 project_config$project$author
             )
         ),
-        extra_files = report_dependencies,
+        extra_files = c(
+            report_dependencies,
+            "reports/images/report-it-cover.png"
+        ),
         profile = "reports"
     ),
     tar_quarto(

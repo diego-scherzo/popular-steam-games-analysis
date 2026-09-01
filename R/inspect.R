@@ -20,6 +20,7 @@ box::use(
 #'
 #' @param data A data frame.
 #' @return `data` with character values trimmed and converted to lowercase.
+#' @noRd
 normalize_character_data <- function(data) {
     data |>
         mutate(
@@ -35,6 +36,7 @@ normalize_character_data <- function(data) {
 #' @param data A data frame.
 #' @param id_column Name of the identifier column, or `NULL` to skip the check.
 #' @return A list containing counts of missing and duplicated identifiers.
+#' @noRd
 inspect_identifier <- function(data, id_column) {
     if (is.null(id_column)) {
         return(

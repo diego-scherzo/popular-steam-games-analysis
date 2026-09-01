@@ -15,6 +15,7 @@ box::use(
 #' @param values A character vector of comma-separated metadata.
 #' @param tokens One or more tokens to search for.
 #' @return A logical vector indicating whether any requested token is present.
+#' @noRd
 has_token <- function(values, tokens) {
     normalized_tokens <- tolower(
         trimws(
@@ -48,6 +49,7 @@ has_token <- function(values, tokens) {
 #'
 #' @param names A character vector of application names.
 #' @return Lowercase names with surrounding and repeated whitespace removed.
+#' @noRd
 normalize_name <- function(names) {
     gsub(
         "[[:space:]]+",

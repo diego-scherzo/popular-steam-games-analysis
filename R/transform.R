@@ -30,6 +30,7 @@ empty_list_value <- "[]"
 #'
 #' @param values A character vector containing comma-separated lists.
 #' @return An integer vector with the number of items in each value.
+#' @noRd
 count_list_items <- function(values) {
     vapply(
         values,

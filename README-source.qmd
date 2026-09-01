@@ -26,7 +26,7 @@ This project uses a reproducible R pipeline to clean and validate a
 [**{{< var processed_dataset.title >}}**]({{< var processed_dataset.url >}}), a
 curated dataset of fully released paid Steam games from
 **{{< var analysis.start_year >}}–{{< var analysis.end_year >}}** with at least
-**10,000 reviews**.
+**{{< var analysis.minimum_reviews >}} reviews**.
 
 The *exploratory data analysis*, the *statistical analysis, including model building and evaluation*, and the *Italian and English reports*, covering methods, results, limitations, and reproducibility, are currently under development.
 

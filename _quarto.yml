@@ -24,7 +24,7 @@ format:
     code-block-bg: "#F6F8FA"
     code-block-border-left: "#B8C0CC"
 
-    tbl-cap-location: top
+    tbl-cap-location: bottom
     fig-cap-location: bottom
 
     keep-tex: false

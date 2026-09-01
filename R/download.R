@@ -13,6 +13,7 @@ box::use(
 #' @param expected_checksum Checksum recorded for the archived snapshot.
 #' @param algorithm Hash algorithm accepted by `digest::digest()`.
 #' @return `path`, invisibly. A mismatch raises an error.
+#' @noRd
 verify_checksum <- function(
     path,
     expected_checksum,
